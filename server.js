@@ -3,8 +3,8 @@
  *  - Serves public/index.html
  *  - Asks Google Apps Script to generate the PDF (Drive) and log (Sheet)
  *  - Sends the mail from the Microsoft 365 mailbox
- *      MAIL_MODE=graph  -> Microsoft Graph API (works on Render free plan)
- *      MAIL_MODE=smtp   -> Outlook SMTP with password (needs paid Render plan)
+ *      MAIL_MODE=smtp   -> Outlook SMTP with password (default; needs paid Render plan)
+ *      MAIL_MODE=graph  -> Microsoft Graph API app (optional; works on free plan)
  *  All settings come from Render → Environment.
  ****************************************************************/
 const express = require('express');
@@ -20,7 +20,7 @@ const CFG = {
   appKey:       env('APP_ACCESS_KEY'),
   gasUrl:       env('GAS_URL'),
   gasKey:       env('GAS_KEY'),
-  mode:         (env('MAIL_MODE') || 'graph').toLowerCase(),
+  mode:         (env('MAIL_MODE') || 'smtp').toLowerCase(),
   from:         env('MAIL_FROM').toLowerCase(),
   fromName:     env('MAIL_FROM_NAME') || 'HR - USDC Global',
   defaultCc:    splitList(env('DEFAULT_CC')),
@@ -231,7 +231,13 @@ app.post('/api/ping', checkKey, async (req, res) => {
   try {
     const g = await callGas('ping', {});
     if (!g.ok) return res.json({ ok: false, error: 'Google Apps Script: ' + g.error });
-    if (CFG.mode !== 'smtp') await graphToken(); // checks Microsoft credentials early
+    // check the mail login right away, so Connect shows any problem before sending
+    if (CFG.mode === 'smtp') {
+      try { await getTransport().verify(); }
+      catch (e) { transporter = null; throw new Error(smtpReason(e)); }
+    } else {
+      await graphToken();
+    }
     res.json({ ok: true, sender: CFG.from, senderName: CFG.fromName, mode: CFG.mode, defaultCc: CFG.defaultCc });
   } catch (e) {
     res.json({ ok: false, error: e.message });

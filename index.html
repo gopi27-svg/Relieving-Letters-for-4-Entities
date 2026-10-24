@@ -98,7 +98,7 @@
 <header>
   <div>
     <h1>Relieving Letter Generator</h1>
-    <p>USDC Projects · SEITO · Learn Overseas · ednxt.ai — sends from hr@usdcglobal.com</p>
+    <p>USDC Projects · SEITO · Learn Overseas · ednxt.ai — <span id="senderTxt">Microsoft 365 mail</span></p>
   </div>
   <div class="conn">
     <input type="password" id="keyIn" placeholder="Access key">
@@ -207,15 +207,13 @@
 
 <script>
 /* ================= CONFIG ================= */
-const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';   // ends with /exec
-
+// Sender, default CC and all mail settings come from Render → Environment.
 const ENTITIES = [
   { name:'USDC Projects India Pvt. Ltd', short:'USDC' },
   { name:'SEITO',                        short:'SEITO Pvt Ltd' },
   { name:'Learn Overseas',               short:'Learn Overseas' },
   { name:'ednxt.ai',                     short:'ednxt.ai' }
 ];
-const DEFAULT_CC = ['nischith@usdcglobal.com','gopi@usdcglobal.com','tejashwini.n@usdcglobal.com'];
 const HEADERS = ['Date of Exit','Employee Full Name','Designation','Date of Joining','Personal Email ID'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -226,7 +224,9 @@ const store = {
 };
 const state = {
   entity: store.get('entity', null),
-  cc: store.get('cc', DEFAULT_CC.slice()),
+  cc: store.get('cc', []),
+  defaultCc: [],
+  sender: '',
   dateFmt: store.get('dateFmt', 'DD-MMM-YYYY'),
   key: store.get('key', ''),
   rows: [],
@@ -237,27 +237,29 @@ const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s||'').trim());
 
 /* ================= API ================= */
-async function api(payload){
-  if (!API_URL || API_URL.indexOf('PASTE_') === 0) throw new Error('API URL not set in index.html');
+async function api(action, payload){
   if (!state.key) throw new Error('Enter the access key (top right) and click Connect');
   let res;
   try{
-    res = await fetch(API_URL,{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(Object.assign({}, payload, { key: state.key })) });
+    res = await fetch('/api/'+action,{ method:'POST',
+      headers:{'Content-Type':'application/json','X-Access-Key':state.key},
+      body: JSON.stringify(payload||{}) });
   }catch(e){ throw new Error('Network error – could not reach server ('+e.message+')'); }
-  const txt = await res.text();
-  try{ return JSON.parse(txt); }
-  catch(e){ throw new Error('Unexpected server response. Check the web app is deployed with access "Anyone".'); }
+  try{ return await res.json(); }
+  catch(e){ throw new Error('Server error (HTTP '+res.status+') – it may be starting up, try again'); }
 }
 
 async function connect(){
   state.key = $('keyIn').value.trim(); store.set('key', state.key);
-  $('dot').className='dot'; $('connTxt').textContent='Connecting…';
+  $('dot').className='dot'; $('connTxt').textContent='Connecting… (first time can take up to a minute)';
   try{
-    const r = await api({action:'ping'});
+    const r = await api('ping');
     if(!r.ok) throw new Error(r.error);
+    state.sender = r.sender; state.defaultCc = r.defaultCc || [];
+    if(store.get('cc', null) === null){ state.cc = state.defaultCc.slice(); renderCc(); }
+    $('senderTxt').textContent = 'sends from '+r.sender;
     $('dot').className='dot ok';
-    $('connTxt').textContent = 'Connected · '+r.sender+' · '+r.quota+' mails left today';
+    $('connTxt').textContent = 'Connected · '+r.sender+' via '+(r.mode==='smtp'?'Outlook SMTP':'Microsoft 365');
   }catch(e){ $('dot').className='dot bad'; $('connTxt').textContent=e.message; }
 }
 
@@ -353,7 +355,10 @@ $('ccIn').addEventListener('keydown',e=>{
 });
 $('ccIn').addEventListener('blur',e=>{ if(e.target.value.trim()){ addCc(e.target.value); e.target.value=''; } });
 $('ccBox').onclick=()=>$('ccIn').focus();
-$('ccReset').onclick=()=>{ state.cc=DEFAULT_CC.slice(); store.set('cc',state.cc); renderCc(); };
+$('ccReset').onclick=()=>{
+  if(!state.defaultCc.length) return alert('Connect first – default CC comes from the server settings.');
+  state.cc=state.defaultCc.slice(); store.set('cc',state.cc); renderCc();
+};
 
 $('dateFmt').value=state.dateFmt;
 $('dateFmt').onchange=e=>{ state.dateFmt=e.target.value; store.set('dateFmt',state.dateFmt); renderTable(); };
@@ -487,7 +492,7 @@ $('clearBtn').onclick=()=>{ state.rows=[]; fileEntity=''; $('fileBanner').innerH
 async function sendRow(r, mode){
   r.status='Sending'; r.error=''; renderTable();
   try{
-    const res=await api({action:'send', entity:state.entity, mode, cc:state.cc.join(','), row:payload(r)});
+    const res=await api('send',{entity:state.entity, mode, cc:state.cc.join(','), row:payload(r)});
     if(res.ok){ r.status='Sent'; r.pdfUrl=res.pdfUrl||''; }
     else { r.status='Failed'; r.error=res.error||'Unknown error'; }
   }catch(e){ r.status='Failed'; r.error=e.message; }
@@ -533,7 +538,7 @@ function openPreview(r){
   const p=payload(r), e=state.entity;
   $('mBody').innerHTML=`
     <div class="mail">
-      <div><span class="k">From</span> hr@usdcglobal.com</div>
+      <div><span class="k">From</span> ${esc(state.sender||'(connect to see sender)')}</div>
       <div><span class="k">To</span> ${esc(p.email)}</div>
       <div><span class="k">CC</span> ${esc(state.cc.join(', ')||'—')}</div>
       <div><span class="k">Subject</span> <b>Relieving Letter/Experience Letter - ${esc(e)}</b></div>
@@ -547,7 +552,7 @@ function openPreview(r){
     </div>
     <div id="pdfFrame"></div>`;
   $('modal').classList.add('open');
-  api({action:'preview', entity:e, row:p}).then(res=>{
+  api('preview',{entity:e, row:p}).then(res=>{
     if(!res.ok) throw new Error(res.error);
     const bytes=Uint8Array.from(atob(res.base64),c=>c.charCodeAt(0));
     const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
@@ -577,7 +582,7 @@ $('sSend').onclick=async()=>{
   if(!confirm(`Send ${state.entity} letter to ${r.name} (${r.email})?`)) return;
   $('sSend').disabled=true; r.status='Sending'; showSingle(r);
   try{
-    const res=await api({action:'send',entity:state.entity,mode:'Single',cc:state.cc.join(','),row:payload(r)});
+    const res=await api('send',{entity:state.entity,mode:'Single',cc:state.cc.join(','),row:payload(r)});
     if(res.ok){ r.status='Sent'; r.pdfUrl=res.pdfUrl||''; } else { r.status='Failed'; r.error=res.error||'Unknown error'; }
   }catch(e){ r.status='Failed'; r.error=e.message; }
   showSingle(r); $('sSend').disabled=false;
@@ -596,7 +601,7 @@ window.addEventListener('beforeunload',e=>{ if(state.sending){ e.preventDefault(
 
 $('keyIn').value=state.key;
 renderEntities(); renderCc(); renderTable();
-if(state.key && API_URL.indexOf('PASTE_')!==0) connect();
+if(state.key) connect();
 </script>
 </body>
 </html>

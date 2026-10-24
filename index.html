@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relieving Letter Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+  :root{
+    --navy:#1f3a5f; --navy-2:#2c5282; --bg:#f4f6fa; --card:#fff; --line:#e2e8f0;
+    --text:#1a202c; --muted:#64748b; --green:#137333; --green-bg:#e6f4ea;
+    --red:#c5221f; --red-bg:#fce8e6; --amber:#b06000; --amber-bg:#fef7e0; --blue-bg:#e8f0fe;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+  header{background:var(--navy);color:#fff;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  header h1{margin:0;font-size:19px;font-weight:700}
+  header p{margin:2px 0 0;font-size:12px;opacity:.75}
+  .conn{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .conn input{padding:7px 10px;border-radius:6px;border:none;width:170px;font:inherit}
+  .dot{width:9px;height:9px;border-radius:50%;background:#94a3b8;display:inline-block}
+  .dot.ok{background:#34d399}.dot.bad{background:#f87171}
+  .conn small{font-size:12px;opacity:.9}
+  main{max-width:1150px;margin:0 auto;padding:20px 16px 60px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px}
+  .card h2{margin:0 0 14px;font-size:15px;display:flex;align-items:center;gap:8px}
+  .step{background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-grid;place-items:center;font-size:12px}
+  .entities{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .ent{border:2px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;font-weight:600;transition:.15s;background:#fff;text-align:left;font:inherit;font-weight:600}
+  .ent:hover{border-color:var(--navy-2)}
+  .ent.sel{border-color:var(--navy);background:var(--blue-bg);color:var(--navy)}
+  .ent span{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:3px}
+  .row2{display:grid;grid-template-columns:2fr 1fr;gap:18px}
+  @media(max-width:760px){.row2{grid-template-columns:1fr}}
+  label.lbl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px;min-height:42px;align-items:center}
+  .chip{background:var(--blue-bg);color:var(--navy);border-radius:20px;padding:4px 6px 4px 10px;font-size:12px;display:flex;align-items:center;gap:4px}
+  .chip button{border:none;background:none;cursor:pointer;color:var(--navy);font-size:15px;line-height:1;padding:0 3px}
+  .chips input{border:none;outline:none;flex:1;min-width:180px;font:inherit;padding:4px}
+  .link{background:none;border:none;color:var(--navy-2);cursor:pointer;font:inherit;font-size:12px;padding:0;text-decoration:underline}
+  select,input.in{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 18px}
+  .tab{padding:10px 16px;border:none;background:none;cursor:pointer;font:inherit;font-weight:600;color:var(--muted);border-bottom:3px solid transparent}
+  .tab.on{color:var(--navy);border-color:var(--navy)}
+  .btn{padding:9px 16px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font:inherit;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{background:var(--navy-2)}
+  .btn.ghost{background:#fff;color:var(--navy)}
+  .btn.ghost:hover{background:var(--blue-bg)}
+  .btn.sm{padding:5px 10px;font-size:12px}
+  .btn.red{background:#fff;color:var(--red);border-color:#f3c3c0}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .drop{border:2px dashed #cbd5e1;border-radius:10px;padding:28px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s}
+  .drop.over{border-color:var(--navy);background:var(--blue-bg)}
+  .drop b{color:var(--navy)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0 10px}
+  .spacer{flex:1}
+  .banner{padding:10px 14px;border-radius:8px;margin:12px 0;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .banner.warn{background:var(--amber-bg);color:var(--amber)}
+  .banner.err{background:var(--red-bg);color:var(--red)}
+  .banner.info{background:var(--blue-bg);color:var(--navy)}
+  .stats{display:flex;gap:8px;flex-wrap:wrap}
+  .stat{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:#eef2f7}
+  .progress{height:8px;background:#e2e8f0;border-radius:6px;overflow:hidden;margin:6px 0 12px;display:none}
+  .progress div{height:100%;width:0;background:var(--green);transition:width .3s}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:var(--navy);color:#fff;text-align:left;padding:9px 10px;font-weight:600;white-space:nowrap}
+  td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top}
+  tr.bad td{background:#fffafa}
+  .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+  .p-Pending{background:#eef2f7;color:var(--muted)}
+  .p-Sending{background:var(--blue-bg);color:var(--navy-2)}
+  .p-Sent{background:var(--green-bg);color:var(--green)}
+  .p-Failed,.p-Invalid{background:var(--red-bg);color:var(--red)}
+  .reason{color:var(--red);font-size:12px;margin-top:4px;max-width:260px}
+  .muted{color:var(--muted)}
+  .acts{display:flex;gap:5px;flex-wrap:nowrap}
+  .spin{width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:sp .7s linear infinite;vertical-align:-1px;margin-right:4px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+  .result{margin-top:16px}
+  .modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .modal.open{display:flex}
+  .mbox{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:92vh;overflow:auto;padding:20px}
+  .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .mhead h3{margin:0;font-size:16px}
+  .mail{border:1px solid var(--line);border-radius:8px;padding:14px;font-size:13px;line-height:1.6}
+  .mail .k{color:var(--muted);display:inline-block;width:62px}
+  .mail hr{border:none;border-top:1px solid var(--line);margin:10px 0}
+  iframe{width:100%;height:540px;border:1px solid var(--line);border-radius:8px;margin-top:12px}
+  .empty{padding:30px;text-align:center;color:var(--muted)}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Relieving Letter Generator</h1>
+    <p>USDC Projects · SEITO · Learn Overseas · ednxt.ai — sends from hr@usdcglobal.com</p>
+  </div>
+  <div class="conn">
+    <input type="password" id="keyIn" placeholder="Access key">
+    <button class="btn ghost sm" id="connectBtn">Connect</button>
+    <span class="dot" id="dot"></span><small id="connTxt">Not connected</small>
+  </div>
+</header>
+
+<main>
+  <!-- STEP 1 -->
+  <div class="card">
+    <h2><span class="step">1</span> Select Entity</h2>
+    <div class="entities" id="entities"></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="card">
+    <h2><span class="step">2</span> Mail Settings</h2>
+    <div class="row2">
+      <div>
+        <label class="lbl">CC (press Enter or comma to add)</label>
+        <div class="chips" id="ccBox"><input id="ccIn" placeholder="add email…"></div>
+        <div class="hint"><button class="link" id="ccReset">Reset to default CC</button></div>
+      </div>
+      <div>
+        <label class="lbl">Date format in letter</label>
+        <select id="dateFmt">
+          <option value="DD-MMM-YYYY">24-Oct-2026</option>
+          <option value="DD/MM/YYYY">24/10/2026</option>
+          <option value="DD-MM-YYYY">24-10-2026</option>
+          <option value="D MMMM YYYY">24 October 2026</option>
+          <option value="Do MMMM YYYY">24th October 2026</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="card">
+    <h2><span class="step">3</span> Generate &amp; Send</h2>
+    <div class="tabs">
+      <button class="tab on" data-tab="bulk">Bulk (Excel)</button>
+      <button class="tab" data-tab="single">Single</button>
+    </div>
+
+    <!-- BULK -->
+    <div id="tab-bulk">
+      <div class="toolbar" style="margin-top:0">
+        <button class="btn ghost" id="sampleBtn" disabled>⬇ Download Sample Excel</button>
+        <span class="muted" id="sampleHint">Select an entity first</span>
+      </div>
+      <div class="drop" id="drop">
+        <b>Click to upload</b> or drag &amp; drop the filled Excel (.xlsx / .xls / .csv)
+        <input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden>
+      </div>
+      <div id="fileBanner"></div>
+
+      <div id="bulkArea" style="display:none">
+        <div class="toolbar">
+          <div class="stats" id="stats"></div>
+          <span class="spacer"></span>
+          <button class="btn ghost sm" id="clearBtn">Clear</button>
+          <button class="btn ghost sm" id="reportBtn">⬇ Download Report</button>
+          <button class="btn ghost sm" id="retryBtn" style="display:none">↻ Retry Failed</button>
+          <button class="btn" id="sendAllBtn">✉ Send All</button>
+        </div>
+        <div class="progress" id="prog"><div></div></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Employee Full Name</th><th>Designation</th><th>Date of Joining</th>
+              <th>Date of Exit</th><th>Personal Email ID</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SINGLE -->
+    <div id="tab-single" style="display:none">
+      <div class="form">
+        <div><label class="lbl">Employee Full Name</label><input class="in" id="sName"></div>
+        <div><label class="lbl">Designation</label><input class="in" id="sDesig"></div>
+        <div><label class="lbl">Date of Joining</label><input class="in" type="date" id="sDoj"></div>
+        <div><label class="lbl">Date of Exit</label><input class="in" type="date" id="sDoe"></div>
+        <div><label class="lbl">Personal Email ID</label><input class="in" type="email" id="sEmail"></div>
+      </div>
+      <div class="toolbar">
+        <button class="btn ghost" id="sPreview">👁 Preview</button>
+        <button class="btn" id="sSend">✉ Send</button>
+        <button class="link" id="sClear">Clear form</button>
+      </div>
+      <div class="result" id="sResult"></div>
+    </div>
+  </div>
+</main>
+
+<!-- PREVIEW MODAL -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <div class="mhead"><h3>Preview</h3><button class="btn ghost sm" id="mClose">✕ Close</button></div>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';   // ends with /exec
+
+const ENTITIES = [
+  { name:'USDC Projects India Pvt. Ltd', short:'USDC' },
+  { name:'SEITO',                        short:'SEITO Pvt Ltd' },
+  { name:'Learn Overseas',               short:'Learn Overseas' },
+  { name:'ednxt.ai',                     short:'ednxt.ai' }
+];
+const DEFAULT_CC = ['nischith@usdcglobal.com','gopi@usdcglobal.com','tejashwini.n@usdcglobal.com'];
+const HEADERS = ['Date of Exit','Employee Full Name','Designation','Date of Joining','Personal Email ID'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+/* ================= STATE ================= */
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem('rlg_'+k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
+  set(k,v){ try{ localStorage.setItem('rlg_'+k,JSON.stringify(v)); }catch(e){} }
+};
+const state = {
+  entity: store.get('entity', null),
+  cc: store.get('cc', DEFAULT_CC.slice()),
+  dateFmt: store.get('dateFmt', 'DD-MMM-YYYY'),
+  key: store.get('key', ''),
+  rows: [],
+  sending: false
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s||'').trim());
+
+/* ================= API ================= */
+async function api(payload){
+  if (!API_URL || API_URL.indexOf('PASTE_') === 0) throw new Error('API URL not set in index.html');
+  if (!state.key) throw new Error('Enter the access key (top right) and click Connect');
+  let res;
+  try{
+    res = await fetch(API_URL,{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(Object.assign({}, payload, { key: state.key })) });
+  }catch(e){ throw new Error('Network error – could not reach server ('+e.message+')'); }
+  const txt = await res.text();
+  try{ return JSON.parse(txt); }
+  catch(e){ throw new Error('Unexpected server response. Check the web app is deployed with access "Anyone".'); }
+}
+
+async function connect(){
+  state.key = $('keyIn').value.trim(); store.set('key', state.key);
+  $('dot').className='dot'; $('connTxt').textContent='Connecting…';
+  try{
+    const r = await api({action:'ping'});
+    if(!r.ok) throw new Error(r.error);
+    $('dot').className='dot ok';
+    $('connTxt').textContent = 'Connected · '+r.sender+' · '+r.quota+' mails left today';
+  }catch(e){ $('dot').className='dot bad'; $('connTxt').textContent=e.message; }
+}
+
+/* ================= DATES ================= */
+function monthIdx(s){ s=String(s).toLowerCase().slice(0,3); return MONTHS.findIndex(m=>m.toLowerCase().slice(0,3)===s); }
+function validYmd(o){
+  if(!o||!o.y||!o.m||!o.d) return null;
+  const dt=new Date(Date.UTC(o.y,o.m-1,o.d));
+  return (dt.getUTCFullYear()===o.y && dt.getUTCMonth()===o.m-1 && dt.getUTCDate()===o.d) ? o : null;
+}
+function toYmd(v){
+  if(v==null||v==='') return null;
+  if(typeof v==='number'){ const p=XLSX.SSF.parse_date_code(v); return p?validYmd({y:p.y,m:p.m,d:p.d}):null; }
+  if(v instanceof Date) return validYmd({y:v.getFullYear(),m:v.getMonth()+1,d:v.getDate()});
+  const s=String(v).trim(); let m; const yy=y=>{y=+y; return y<100?y+2000:y;};
+  if((m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/))) return validYmd({y:+m[1],m:+m[2],d:+m[3]});
+  if((m=s.match(/^(\d{1,2})[-\/. ](\d{1,2})[-\/. ](\d{2,4})$/))) return validYmd({y:yy(m[3]),m:+m[2],d:+m[1]});
+  if((m=s.match(/^(\d{1,2})(?:st|nd|rd|th)?[-\/. ,]+([A-Za-z]{3,})[-\/. ,]+(\d{2,4})$/))){ const i=monthIdx(m[2]); if(i>=0) return validYmd({y:yy(m[3]),m:i+1,d:+m[1]}); }
+  if((m=s.match(/^([A-Za-z]{3,})[-\/. ]+(\d{1,2})(?:st|nd|rd|th)?[, ]+(\d{4})$/))){ const i=monthIdx(m[1]); if(i>=0) return validYmd({y:+m[3],m:i+1,d:+m[2]}); }
+  return null;
+}
+function ord(n){ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+function fmtDate(o, f){
+  if(!o) return '';
+  const dd=String(o.d).padStart(2,'0'), mm=String(o.m).padStart(2,'0'), mon=MONTHS[o.m-1];
+  switch(f||state.dateFmt){
+    case 'DD/MM/YYYY': return dd+'/'+mm+'/'+o.y;
+    case 'DD-MM-YYYY': return dd+'-'+mm+'-'+o.y;
+    case 'D MMMM YYYY': return o.d+' '+mon+' '+o.y;
+    case 'Do MMMM YYYY': return ord(o.d)+' '+mon+' '+o.y;
+    default: return dd+'-'+mon.slice(0,3)+'-'+o.y;
+  }
+}
+
+/* ================= ROWS ================= */
+function makeRow(src){
+  return {
+    id: Math.random().toString(36).slice(2),
+    name: String(src.name||'').replace(/\s+/g,' ').trim(),
+    designation: String(src.designation||'').replace(/\s+/g,' ').trim(),
+    dojRaw: src.doj, doj: toYmd(src.doj),
+    doeRaw: src.doe, doe: toYmd(src.doe),
+    email: String(src.email||'').trim().toLowerCase(),
+    status:'Pending', error:'', pdfUrl:''
+  };
+}
+function issues(r){
+  const p=[];
+  if(!r.name) p.push('Name missing');
+  if(!r.designation) p.push('Designation missing');
+  if(!r.doj) p.push(r.dojRaw?('Date of Joining not readable: "'+r.dojRaw+'"'):'Date of Joining missing');
+  if(!r.doe) p.push(r.doeRaw?('Date of Exit not readable: "'+r.doeRaw+'"'):'Date of Exit missing');
+  if(r.doj && r.doe && Date.UTC(r.doe.y,r.doe.m-1,r.doe.d) < Date.UTC(r.doj.y,r.doj.m-1,r.doj.d)) p.push('Date of Exit is before Date of Joining');
+  if(!r.email) p.push('Personal Email missing'); else if(!isEmail(r.email)) p.push('Invalid email');
+  return p;
+}
+const payload = r => ({ name:r.name, designation:r.designation, doj:fmtDate(r.doj), doe:fmtDate(r.doe), email:r.email });
+
+/* ================= ENTITY UI ================= */
+function renderEntities(){
+  $('entities').innerHTML = ENTITIES.map(e=>
+    `<button class="ent ${state.entity===e.name?'sel':''}" data-e="${esc(e.name)}">${esc(e.name)}<span>${esc(e.short)}</span></button>`).join('');
+  $('entities').querySelectorAll('.ent').forEach(b=>b.onclick=()=>selectEntity(b.dataset.e));
+  $('sampleBtn').disabled = !state.entity;
+  $('sampleHint').textContent = state.entity ? ('Sample will be for: '+state.entity) : 'Select an entity first';
+}
+function selectEntity(name){
+  if(state.sending) return alert('Wait until sending finishes.');
+  state.entity=name; store.set('entity',name); renderEntities(); checkFileEntity();
+}
+
+/* ================= CC UI ================= */
+function renderCc(){
+  const box=$('ccBox'), input=$('ccIn');
+  box.querySelectorAll('.chip').forEach(c=>c.remove());
+  state.cc.forEach((em,i)=>{
+    const c=document.createElement('span'); c.className='chip';
+    c.innerHTML=esc(em)+'<button title="Remove">×</button>';
+    c.querySelector('button').onclick=()=>{ state.cc.splice(i,1); store.set('cc',state.cc); renderCc(); };
+    box.insertBefore(c,input);
+  });
+}
+function addCc(v){
+  v.split(/[,;\s]+/).map(s=>s.trim().toLowerCase()).filter(Boolean).forEach(em=>{
+    if(!isEmail(em)) return alert('Invalid CC email: '+em);
+    if(!state.cc.includes(em)) state.cc.push(em);
+  });
+  store.set('cc',state.cc); renderCc();
+}
+$('ccIn').addEventListener('keydown',e=>{
+  if(e.key==='Enter'||e.key===','){ e.preventDefault(); if(e.target.value.trim()){ addCc(e.target.value); e.target.value=''; } }
+  if(e.key==='Backspace' && !e.target.value && state.cc.length){ state.cc.pop(); store.set('cc',state.cc); renderCc(); }
+});
+$('ccIn').addEventListener('blur',e=>{ if(e.target.value.trim()){ addCc(e.target.value); e.target.value=''; } });
+$('ccBox').onclick=()=>$('ccIn').focus();
+$('ccReset').onclick=()=>{ state.cc=DEFAULT_CC.slice(); store.set('cc',state.cc); renderCc(); };
+
+$('dateFmt').value=state.dateFmt;
+$('dateFmt').onchange=e=>{ state.dateFmt=e.target.value; store.set('dateFmt',state.dateFmt); renderTable(); };
+
+/* ================= SAMPLE EXCEL ================= */
+$('sampleBtn').onclick=()=>{
+  if(!state.entity) return;
+  const ws = XLSX.utils.aoa_to_sheet([['Entity: '+state.entity,'','','',''], HEADERS]);
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:4}}];
+  ws['!cols']=[{wch:16},{wch:30},{wch:26},{wch:18},{wch:32}];
+  ws['!rows']=[{hpt:26},{hpt:22}];
+  const border={top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}};
+  for(let c=0;c<5;c++){
+    const a=XLSX.utils.encode_cell({r:0,c});
+    if(!ws[a]) ws[a]={t:'s',v:''};
+    ws[a].s={font:{bold:true,sz:13,color:{rgb:'1F3A5F'}},fill:{fgColor:{rgb:'DCE6F1'}},alignment:{horizontal:'center',vertical:'center'},border};
+    const h=XLSX.utils.encode_cell({r:1,c});
+    ws[h].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1F3A5F'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border};
+  }
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Relieving Letters');
+  XLSX.writeFile(wb,'Relieving_Letter_Sample_'+state.entity.replace(/[^A-Za-z0-9]+/g,'_')+'.xlsx');
+};
+
+/* ================= UPLOAD ================= */
+let fileEntity='';
+const drop=$('drop');
+drop.onclick=()=>$('fileIn').click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('over');};
+drop.ondragleave=()=>drop.classList.remove('over');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over'); if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]);};
+$('fileIn').onchange=e=>{ if(e.target.files[0]) readFile(e.target.files[0]); e.target.value=''; };
+
+function norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+function readFile(file){
+  if(state.sending) return alert('Wait until sending finishes.');
+  const fr=new FileReader();
+  fr.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+      if(aoa.length<2) throw new Error('File is empty. Use the sample Excel format.');
+
+      // find header row (normally row 2)
+      let hr=aoa.findIndex(r=>r.some(c=>norm(c)==='employeefullname'));
+      if(hr<0) throw new Error('Header "Employee Full Name" not found. Row 2 must have the headers.');
+      const map={}; aoa[hr].forEach((h,i)=>{ const n=norm(h);
+        if(n.includes('exit')) map.doe=i; else if(n.includes('fullname')||n==='employeename') map.name=i;
+        else if(n.includes('designation')) map.designation=i; else if(n.includes('joining')) map.doj=i;
+        else if(n.includes('email')) map.email=i; });
+      const miss=['doe','name','designation','doj','email'].filter(k=>map[k]===undefined);
+      if(miss.length) throw new Error('Missing column(s): '+miss.map(k=>({doe:'Date of Exit',name:'Employee Full Name',designation:'Designation',doj:'Date of Joining',email:'Personal Email ID'})[k]).join(', '));
+
+      fileEntity = hr>0 ? String(aoa[0].find(c=>String(c).trim())||'').replace(/^\s*entity\s*[:\-]?\s*/i,'').trim() : '';
+      state.rows = aoa.slice(hr+1)
+        .filter(r=>r.some(c=>String(c).trim()!==''))
+        .map(r=>makeRow({name:r[map.name],designation:r[map.designation],doj:r[map.doj],doe:r[map.doe],email:r[map.email]}));
+      if(!state.rows.length) throw new Error('No employee rows found below the headers.');
+
+      // duplicate emails in file
+      const seen={}; state.rows.forEach(r=>{ if(r.email){ seen[r.email]=(seen[r.email]||0)+1; }});
+      state.rows.forEach(r=>{ r.dup = seen[r.email]>1; });
+
+      if(!state.entity && fileEntity){ const m=ENTITIES.find(e=>norm(e.name)===norm(fileEntity)); if(m) selectEntity(m.name); }
+      $('bulkArea').style.display='';
+      checkFileEntity(file.name);
+      renderTable();
+    }catch(err){
+      $('fileBanner').innerHTML=`<div class="banner err">⚠ ${esc(err.message)}</div>`;
+      $('bulkArea').style.display='none'; state.rows=[];
+    }
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+function checkFileEntity(fname){
+  if(!state.rows.length){ return; }
+  const b=$('fileBanner');
+  let html = fname ? `<div class="banner info">📄 ${esc(fname)} — ${state.rows.length} employee(s) loaded</div>` : (b.dataset.base||'');
+  if(fname) b.dataset.base=html;
+  if(!state.entity) html+=`<div class="banner warn">⚠ Select an entity above before sending.</div>`;
+  else if(fileEntity && norm(fileEntity)!==norm(state.entity)){
+    const m=ENTITIES.find(e=>norm(e.name)===norm(fileEntity));
+    html+=`<div class="banner warn">⚠ File says <b>${esc(fileEntity)}</b> but selected entity is <b>${esc(state.entity)}</b>.
+      ${m?`<button class="btn sm ghost" onclick="selectEntity('${esc(m.name)}')">Switch to ${esc(m.name)}</button>`:''}</div>`;
+  }
+  b.innerHTML=html;
+}
+
+/* ================= TABLE ================= */
+function renderTable(){
+  const tb=$('tbody');
+  if(!state.rows.length){ tb.innerHTML=`<tr><td colspan="8" class="empty">No rows</td></tr>`; renderStats(); return; }
+  tb.innerHTML=state.rows.map((r,i)=>{
+    const p=issues(r); const st = p.length && r.status==='Pending' ? 'Invalid' : r.status;
+    const reason = st==='Invalid' ? p.join('; ') : (r.status==='Failed' ? r.error : '');
+    const dupNote = r.dup ? `<div class="reason" style="color:var(--amber)">Same email appears more than once</div>` : '';
+    return `<tr class="${p.length?'bad':''}">
+      <td>${i+1}</td>
+      <td>${esc(r.name)||'<span class="muted">—</span>'}</td>
+      <td>${esc(r.designation)||'<span class="muted">—</span>'}</td>
+      <td>${r.doj?esc(fmtDate(r.doj)):`<span style="color:var(--red)">${esc(r.dojRaw)||'—'}</span>`}</td>
+      <td>${r.doe?esc(fmtDate(r.doe)):`<span style="color:var(--red)">${esc(r.doeRaw)||'—'}</span>`}</td>
+      <td>${esc(r.email)||'—'}${dupNote}</td>
+      <td><span class="pill p-${st}">${st==='Sending'?'<span class="spin"></span>':''}${st}</span>
+          ${reason?`<div class="reason">${esc(reason)}</div>`:''}
+          ${r.pdfUrl?`<div><a class="link" href="${esc(r.pdfUrl)}" target="_blank">View PDF</a></div>`:''}</td>
+      <td><div class="acts">
+        <button class="btn ghost sm" onclick="previewRow('${r.id}')" ${p.length?'disabled':''}>👁</button>
+        <button class="btn sm" onclick="sendOne('${r.id}')" ${p.length||state.sending||r.status==='Sending'?'disabled':''}>${r.status==='Sent'?'Resend':'Send'}</button>
+        <button class="btn red sm" onclick="removeRow('${r.id}')" ${state.sending?'disabled':''} title="Remove">✕</button>
+      </div></td></tr>`;
+  }).join('');
+  renderStats();
+}
+function renderStats(){
+  const c={total:state.rows.length,Pending:0,Sending:0,Sent:0,Failed:0,Invalid:0};
+  state.rows.forEach(r=>{ if(issues(r).length && r.status==='Pending') c.Invalid++; else c[r.status]++; });
+  $('stats').innerHTML=`<span class="stat">Total ${c.total}</span><span class="stat p-Pending">Pending ${c.Pending}</span>
+    <span class="stat p-Sent">Sent ${c.Sent}</span><span class="stat p-Failed">Failed ${c.Failed}</span>
+    ${c.Invalid?`<span class="stat p-Invalid">Invalid ${c.Invalid}</span>`:''}`;
+  $('retryBtn').style.display = c.Failed && !state.sending ? '' : 'none';
+  $('sendAllBtn').disabled = state.sending || !c.Pending;
+  $('clearBtn').disabled = state.sending;
+}
+function removeRow(id){ state.rows=state.rows.filter(r=>r.id!==id); renderTable(); }
+$('clearBtn').onclick=()=>{ state.rows=[]; fileEntity=''; $('fileBanner').innerHTML=''; $('bulkArea').style.display='none'; };
+
+/* ================= SENDING ================= */
+async function sendRow(r, mode){
+  r.status='Sending'; r.error=''; renderTable();
+  try{
+    const res=await api({action:'send', entity:state.entity, mode, cc:state.cc.join(','), row:payload(r)});
+    if(res.ok){ r.status='Sent'; r.pdfUrl=res.pdfUrl||''; }
+    else { r.status='Failed'; r.error=res.error||'Unknown error'; }
+  }catch(e){ r.status='Failed'; r.error=e.message; }
+  renderTable();
+}
+async function runQueue(list, label){
+  if(!state.entity) return alert('Select an entity first.');
+  if(!list.length) return alert('Nothing to send.');
+  if(!confirm(`${label} ${list.length} letter(s) for "${state.entity}"?\n\nCC: ${state.cc.join(', ')||'(none)'}`)) return;
+  state.sending=true; const pg=$('prog'); pg.style.display='block'; pg.firstElementChild.style.width='0';
+  for(let i=0;i<list.length;i++){
+    await sendRow(list[i],'Bulk');
+    pg.firstElementChild.style.width=((i+1)/list.length*100)+'%';
+  }
+  state.sending=false; renderTable();
+  const sent=list.filter(r=>r.status==='Sent').length;
+  setTimeout(()=>alert(`Done.\nSent: ${sent}\nFailed: ${list.length-sent}`),100);
+}
+$('sendAllBtn').onclick=()=>runQueue(state.rows.filter(r=>r.status==='Pending'&&!issues(r).length),'Send');
+$('retryBtn').onclick=()=>runQueue(state.rows.filter(r=>r.status==='Failed'&&!issues(r).length),'Retry');
+async function sendOne(id){
+  const r=state.rows.find(x=>x.id===id); if(!r) return;
+  if(!state.entity) return alert('Select an entity first.');
+  if(r.status==='Sent' && !confirm('Already sent to '+r.email+'. Send again?')) return;
+  if(r.status!=='Sent' && !confirm(`Send letter to ${r.name} (${r.email})?`)) return;
+  state.sending=true; await sendRow(r,'Single'); state.sending=false; renderTable();
+}
+
+$('reportBtn').onclick=()=>{
+  const data=[['Entity','Employee Full Name','Designation','Date of Joining','Date of Exit','Personal Email ID','Status','Failure Reason','PDF Link']];
+  state.rows.forEach(r=>{ const p=issues(r); const st=p.length&&r.status==='Pending'?'Invalid':r.status;
+    data.push([state.entity||'',r.name,r.designation,fmtDate(r.doj)||r.dojRaw,fmtDate(r.doe)||r.doeRaw,r.email,st,st==='Invalid'?p.join('; '):r.error,r.pdfUrl]); });
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:26},{wch:28},{wch:22},{wch:15},{wch:15},{wch:30},{wch:10},{wch:45},{wch:40}];
+  for(let c=0;c<9;c++){ ws[XLSX.utils.encode_cell({r:0,c})].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1F3A5F'}}}; }
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Report');
+  XLSX.writeFile(wb,'Relieving_Letter_Report_'+new Date().toISOString().slice(0,10)+'.xlsx');
+};
+
+/* ================= PREVIEW ================= */
+function openPreview(r){
+  if(!state.entity) return alert('Select an entity first.');
+  const p=payload(r), e=state.entity;
+  $('mBody').innerHTML=`
+    <div class="mail">
+      <div><span class="k">From</span> hr@usdcglobal.com</div>
+      <div><span class="k">To</span> ${esc(p.email)}</div>
+      <div><span class="k">CC</span> ${esc(state.cc.join(', ')||'—')}</div>
+      <div><span class="k">Subject</span> <b>Relieving Letter/Experience Letter - ${esc(e)}</b></div>
+      <hr>
+      Dear ${esc(p.name)},<br><br>
+      Please find the attached ${esc(e)} Experience Letter for your reference.<br><br>
+      We appreciate your contributions during your time with ${esc(e)}. We wish you all the best in your future endeavours.<br><br>
+      For any challenges feel free to reach out to us.<br><br>Regards,<br>HR Team<br>${esc(e)}
+      <hr>
+      📎 <span id="pdfStatus"><span class="spin"></span>Generating letter preview…</span>
+    </div>
+    <div id="pdfFrame"></div>`;
+  $('modal').classList.add('open');
+  api({action:'preview', entity:e, row:p}).then(res=>{
+    if(!res.ok) throw new Error(res.error);
+    const bytes=Uint8Array.from(atob(res.base64),c=>c.charCodeAt(0));
+    const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+    $('pdfStatus').innerHTML=`${esc(res.fileName)} · <a class="link" href="${url}" target="_blank">Open PDF in new tab</a>`;
+    $('pdfFrame').innerHTML=`<iframe src="${url}"></iframe>`;
+  }).catch(err=>{ $('pdfStatus').innerHTML=`<span style="color:var(--red)">Preview failed: ${esc(err.message)}</span>`; });
+}
+function previewRow(id){ const r=state.rows.find(x=>x.id===id); if(r) openPreview(r); }
+$('mClose').onclick=()=>$('modal').classList.remove('open');
+$('modal').onclick=e=>{ if(e.target.id==='modal') $('modal').classList.remove('open'); };
+
+/* ================= SINGLE ================= */
+function singleRow(){
+  return makeRow({name:$('sName').value,designation:$('sDesig').value,doj:$('sDoj').value,doe:$('sDoe').value,email:$('sEmail').value});
+}
+function showSingle(r){
+  const reason = r.status==='Failed' ? `<div class="reason" style="max-width:none">Reason: ${esc(r.error)}</div>` : '';
+  $('sResult').innerHTML=`<div class="banner ${r.status==='Sent'?'info':r.status==='Failed'?'err':'info'}">
+    <span class="pill p-${r.status}">${r.status==='Sending'?'<span class="spin"></span>':''}${r.status}</span>
+    ${esc(r.name)} → ${esc(r.email)} ${r.pdfUrl?`· <a class="link" href="${esc(r.pdfUrl)}" target="_blank">View PDF</a>`:''}
+    ${reason}</div>`;
+}
+$('sPreview').onclick=()=>{ const r=singleRow(), p=issues(r); if(p.length) return alert(p.join('\n')); openPreview(r); };
+$('sSend').onclick=async()=>{
+  if(!state.entity) return alert('Select an entity first.');
+  const r=singleRow(), p=issues(r); if(p.length) return alert(p.join('\n'));
+  if(!confirm(`Send ${state.entity} letter to ${r.name} (${r.email})?`)) return;
+  $('sSend').disabled=true; r.status='Sending'; showSingle(r);
+  try{
+    const res=await api({action:'send',entity:state.entity,mode:'Single',cc:state.cc.join(','),row:payload(r)});
+    if(res.ok){ r.status='Sent'; r.pdfUrl=res.pdfUrl||''; } else { r.status='Failed'; r.error=res.error||'Unknown error'; }
+  }catch(e){ r.status='Failed'; r.error=e.message; }
+  showSingle(r); $('sSend').disabled=false;
+};
+$('sClear').onclick=()=>{ ['sName','sDesig','sDoj','sDoe','sEmail'].forEach(id=>$(id).value=''); $('sResult').innerHTML=''; };
+
+/* ================= TABS & INIT ================= */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+  $('tab-bulk').style.display = t.dataset.tab==='bulk'?'':'none';
+  $('tab-single').style.display = t.dataset.tab==='single'?'':'none';
+});
+$('connectBtn').onclick=connect;
+$('keyIn').addEventListener('keydown',e=>{ if(e.key==='Enter') connect(); });
+window.addEventListener('beforeunload',e=>{ if(state.sending){ e.preventDefault(); e.returnValue=''; } });
+
+$('keyIn').value=state.key;
+renderEntities(); renderCc(); renderTable();
+if(state.key && API_URL.indexOf('PASTE_')!==0) connect();
+</script>
+</body>
+</html>

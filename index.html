@@ -214,7 +214,7 @@ const ENTITIES = [
   { name:'Learn Overseas',               short:'Learn Overseas' },
   { name:'ednxt.ai',                     short:'ednxt.ai' }
 ];
-const HEADERS = ['Date of Exit','Employee Full Name','Designation','Date of Joining','Personal Email ID'];
+const HEADERS = ['Employee Full Name (Add Mr/Ms)','Designation','Date of Joining (DD-MM-YYYY)','Date of Exit (DD-MM-YYYY)','Personal Email ID'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 /* ================= STATE ================= */
@@ -368,8 +368,11 @@ $('sampleBtn').onclick=()=>{
   if(!state.entity) return;
   const ws = XLSX.utils.aoa_to_sheet([['Entity: '+state.entity,'','','',''], HEADERS]);
   ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:4}}];
-  ws['!cols']=[{wch:16},{wch:30},{wch:26},{wch:18},{wch:32}];
-  ws['!rows']=[{hpt:26},{hpt:22}];
+  ws['!cols']=[{wch:34},{wch:30},{wch:28},{wch:26},{wch:34}];
+  ws['!rows']=[{hpt:26},{hpt:30}];
+  // date columns stored as text so Excel keeps DD-MM-YYYY exactly as typed
+  for(let r=2;r<1002;r++) for(const c of [2,3]) ws[XLSX.utils.encode_cell({r,c})]={t:'s',v:'',z:'@',s:{numFmt:'@'}};
+  ws['!ref']='A1:E1002';
   const border={top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}};
   for(let c=0;c<5;c++){
     const a=XLSX.utils.encode_cell({r:0,c});
@@ -404,7 +407,7 @@ function readFile(file){
       if(aoa.length<2) throw new Error('File is empty. Use the sample Excel format.');
 
       // find header row (normally row 2)
-      let hr=aoa.findIndex(r=>r.some(c=>norm(c)==='employeefullname'));
+      let hr=aoa.findIndex(r=>r.some(c=>norm(c).startsWith('employeefullname')));
       if(hr<0) throw new Error('Header "Employee Full Name" not found. Row 2 must have the headers.');
       const map={}; aoa[hr].forEach((h,i)=>{ const n=norm(h);
         if(n.includes('exit')) map.doe=i; else if(n.includes('fullname')||n==='employeename') map.name=i;
@@ -414,6 +417,7 @@ function readFile(file){
       if(miss.length) throw new Error('Missing column(s): '+miss.map(k=>({doe:'Date of Exit',name:'Employee Full Name',designation:'Designation',doj:'Date of Joining',email:'Personal Email ID'})[k]).join(', '));
 
       fileEntity = hr>0 ? String(aoa[0].find(c=>String(c).trim())||'').replace(/^\s*entity\s*[:\-]?\s*/i,'').trim() : '';
+      if(!fileEntity) throw new Error('Entity name is missing in Row 1. Please use the Sample Excel'+(state.entity?' for '+state.entity:'')+'.');
       state.rows = aoa.slice(hr+1)
         .filter(r=>r.some(c=>String(c).trim()!==''))
         .map(r=>makeRow({name:r[map.name],designation:r[map.designation],doj:r[map.doj],doe:r[map.doe],email:r[map.email]}));
@@ -435,18 +439,21 @@ function readFile(file){
   fr.readAsArrayBuffer(file);
 }
 
+function entityMismatch(){
+  return !!(state.rows.length && state.entity && norm(fileEntity)!==norm(state.entity));
+}
 function checkFileEntity(fname){
   if(!state.rows.length){ return; }
   const b=$('fileBanner');
-  let html = fname ? `<div class="banner info">📄 ${esc(fname)} — ${state.rows.length} employee(s) loaded</div>` : (b.dataset.base||'');
-  if(fname) b.dataset.base=html;
+  if(fname) b.dataset.base=`<div class="banner info">📄 ${esc(fname)} — ${state.rows.length} employee(s) · File entity: <b>${esc(fileEntity)}</b></div>`;
+  let html=b.dataset.base||'';
   if(!state.entity) html+=`<div class="banner warn">⚠ Select an entity above before sending.</div>`;
-  else if(fileEntity && norm(fileEntity)!==norm(state.entity)){
-    const m=ENTITIES.find(e=>norm(e.name)===norm(fileEntity));
-    html+=`<div class="banner warn">⚠ File says <b>${esc(fileEntity)}</b> but selected entity is <b>${esc(state.entity)}</b>.
-      ${m?`<button class="btn sm ghost" onclick="selectEntity('${esc(m.name)}')">Switch to ${esc(m.name)}</button>`:''}</div>`;
+  else if(entityMismatch()){
+    html+=`<div class="banner err">⛔ This file is for <b>${esc(fileEntity)}</b>, but you selected <b>${esc(state.entity)}</b>.
+      Please attach the <b>${esc(state.entity)}</b> file (use Download Sample Excel for ${esc(state.entity)}).</div>`;
   }
   b.innerHTML=html;
+  $('bulkArea').style.display = entityMismatch() ? 'none' : '';
 }
 
 /* ================= TABLE ================= */
@@ -500,6 +507,7 @@ async function sendRow(r, mode){
 }
 async function runQueue(list, label){
   if(!state.entity) return alert('Select an entity first.');
+  if(entityMismatch()) return alert('This file is for '+fileEntity+'. Please attach the '+state.entity+' file.');
   if(!list.length) return alert('Nothing to send.');
   if(!confirm(`${label} ${list.length} letter(s) for "${state.entity}"?\n\nCC: ${state.cc.join(', ')||'(none)'}`)) return;
   state.sending=true; const pg=$('prog'); pg.style.display='block'; pg.firstElementChild.style.width='0';
@@ -516,6 +524,7 @@ $('retryBtn').onclick=()=>runQueue(state.rows.filter(r=>r.status==='Failed'&&!is
 async function sendOne(id){
   const r=state.rows.find(x=>x.id===id); if(!r) return;
   if(!state.entity) return alert('Select an entity first.');
+  if(entityMismatch()) return alert('This file is for '+fileEntity+'. Please attach the '+state.entity+' file.');
   if(r.status==='Sent' && !confirm('Already sent to '+r.email+'. Send again?')) return;
   if(r.status!=='Sent' && !confirm(`Send letter to ${r.name} (${r.email})?`)) return;
   state.sending=true; await sendRow(r,'Single'); state.sending=false; renderTable();

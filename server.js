@@ -52,6 +52,14 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/healthz', (req, res) => res.send('ok'));
 
+// Serve the page whether index.html is in /public, /Public or the repo root
+const fs = require('fs');
+const PAGE = ['public/index.html', 'Public/index.html', 'index.html']
+  .map(p => path.join(__dirname, p)).find(p => fs.existsSync(p));
+app.get('/', (req, res) => PAGE
+  ? res.sendFile(PAGE)
+  : res.status(404).send('index.html not found – upload it to the repo (root or a "public" folder)'));
+
 function checkKey(req, res, next) {
   if (!CFG.appKey) return res.status(500).json({ ok: false, error: 'Server not configured: APP_ACCESS_KEY is missing' });
   const given = String(req.get('X-Access-Key') || '');
